@@ -1,17 +1,697 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Triplog</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TripLog — Your journey, beautifully remembered.</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #f5f3ee;
+      --paper: #faf9f6;
+      --text: #252525;
+      --muted: #8a8882;
+      --line: #dedbd3;
+      --accent: #6d7467;
+      --dark: #252722;
+    }
+
+    body {
+      font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Helvetica Neue",
+        Arial,
+        sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    /* ---------- Header ---------- */
+
+    header {
+      height: 72px;
+      padding: 0 5vw;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      background: rgba(245, 243, 238, 0.92);
+    }
+
+    .logo {
+      font-family: Georgia, serif;
+      font-size: 24px;
+      letter-spacing: -0.5px;
+    }
+
+    nav {
+      display: flex;
+      gap: 28px;
+      align-items: center;
+    }
+
+    nav a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    nav a:hover {
+      color: var(--text);
+    }
+
+    .new-trip {
+      border: 1px solid var(--text);
+      background: transparent;
+      padding: 9px 17px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .new-trip:hover {
+      background: var(--dark);
+      color: white;
+    }
+
+    /* ---------- Hero ---------- */
+
+    .hero {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 72px 5vw 55px;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .hero h1 {
+      font-family: Georgia, serif;
+      font-weight: normal;
+      font-size: clamp(48px, 7vw, 88px);
+      line-height: 0.95;
+      letter-spacing: -4px;
+    }
+
+    .hero-description {
+      max-width: 310px;
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    /* ---------- Main Layout ---------- */
+
+    .trip-layout {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 5vw 80px;
+
+      display: grid;
+      grid-template-columns: 42% 58%;
+      gap: 0;
+    }
+
+    /* ---------- Timeline ---------- */
+
+    .timeline {
+      padding-right: 55px;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .timeline-header h2 {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .trip-date {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .day {
+      padding: 34px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .day-heading {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 25px;
+    }
+
+    .day-number {
+      font-family: Georgia, serif;
+      font-size: 25px;
+    }
+
+    .day-place {
+      color: var(--muted);
+      font-size: 12px;
+      padding-top: 7px;
+    }
+
+    .event {
+      position: relative;
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 18px;
+      padding-bottom: 28px;
+      cursor: pointer;
+    }
+
+    .event:last-child {
+      padding-bottom: 0;
+    }
+
+    .event-time {
+      color: var(--muted);
+      font-size: 11px;
+      padding-top: 5px;
+    }
+
+    .event-content {
+      border-left: 1px solid var(--line);
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .event-content::before {
+      content: "";
+      position: absolute;
+      left: -4px;
+      top: 7px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .event-title {
+      font-family: Georgia, serif;
+      font-size: 19px;
+      margin-bottom: 4px;
+    }
+
+    .event-location {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+
+    .event-note {
+      color: #5f5d58;
+      font-size: 13px;
+      max-width: 390px;
+    }
+
+    .event-image {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      margin-top: 15px;
+      filter: saturate(0.82);
+    }
+
+    .expense {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    /* ---------- Map ---------- */
+
+    .map-panel {
+      position: sticky;
+      top: 20px;
+      height: 650px;
+      background: #e6e3db;
+      overflow: hidden;
+    }
+
+    .map-title {
+      position: absolute;
+      z-index: 3;
+      top: 22px;
+      left: 25px;
+      background: rgba(250, 249, 246, 0.9);
+      padding: 10px 15px;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .map {
+      width: 100%;
+      height: 100%;
+      position: relative;
+
+      /*
+        This is a visual placeholder for the real map.
+        Later we will replace this with Google Maps / Mapbox.
+      */
+      background:
+        radial-gradient(
+          circle at 60% 35%,
+          rgba(255,255,255,0.7),
+          transparent 32%
+        ),
+        linear-gradient(
+          125deg,
+          transparent 0 40%,
+          rgba(255,255,255,0.5) 40.2% 40.7%,
+          transparent 40.9%
+        ),
+        #ddd9ce;
+    }
+
+    .route {
+      position: absolute;
+      width: 60%;
+      height: 40%;
+      left: 20%;
+      top: 28%;
+
+      border-left: 1px dashed #77786f;
+      border-bottom: 1px dashed #77786f;
+
+      transform: rotate(-12deg);
+      opacity: 0.7;
+    }
+
+    .map-point {
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      background: var(--dark);
+      border: 3px solid rgba(255,255,255,0.85);
+      border-radius: 50%;
+      box-shadow: 0 2px 7px rgba(0,0,0,0.15);
+    }
+
+    .point-1 {
+      left: 32%;
+      top: 68%;
+    }
+
+    .point-2 {
+      left: 51%;
+      top: 47%;
+    }
+
+    .point-3 {
+      left: 65%;
+      top: 29%;
+    }
+
+    .map-label {
+      position: absolute;
+      font-size: 11px;
+      color: #55564f;
+      white-space: nowrap;
+    }
+
+    .label-1 {
+      left: 32%;
+      top: 71%;
+    }
+
+    .label-2 {
+      left: 51%;
+      top: 50%;
+    }
+
+    .label-3 {
+      left: 65%;
+      top: 32%;
+    }
+
+    .map-footer {
+      position: absolute;
+      bottom: 20px;
+      left: 25px;
+      right: 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+    }
+
+    .map-caption {
+      background: rgba(250,249,246,0.88);
+      padding: 10px 14px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .total {
+      background: var(--dark);
+      color: white;
+      padding: 12px 17px;
+      font-size: 12px;
+    }
+
+    /* ---------- Footer ---------- */
+
+    footer {
+      border-top: 1px solid var(--line);
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 5vw 45px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    /* ---------- Responsive ---------- */
+
+    @media (max-width: 850px) {
+      header {
+        padding: 0 25px;
+      }
+
+      nav a {
+        display: none;
+      }
+
+      .hero {
+        padding: 50px 25px 40px;
+        display: block;
+      }
+
+      .hero-description {
+        margin-top: 25px;
+      }
+
+      .trip-layout {
+        display: block;
+        padding: 0 25px 60px;
+      }
+
+      .timeline {
+        padding-right: 0;
+      }
+
+      .map-panel {
+        margin-top: 35px;
+        height: 450px;
+        position: relative;
+        top: 0;
+      }
+
+      footer {
+        padding-left: 25px;
+        padding-right: 25px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-    <h1>Triplog ✈️</h1>
+  <!-- Header -->
+  <header>
+    <div class="logo">TripLog</div>
 
-    <p>Your travel, organized by time and place.</p>
+    <nav>
+      <a href="#">Journal</a>
+      <a href="#">Map</a>
+      <a href="#">Memories</a>
+      <button class="new-trip">＋ New Trip</button>
+    </nav>
+  </header>
 
-    <button>+ New Trip</button>
-    
+
+  <!-- Hero -->
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Travel Journal · 2026</div>
+      <h1>Thailand<br>in June.</h1>
+    </div>
+
+    <p class="hero-description">
+      A journey through Chiang Mai, Phuket and Bangkok —
+      remembered through time, place and moments.
+    </p>
+  </section>
+
+
+  <!-- Main -->
+  <main class="trip-layout">
+
+    <!-- Timeline -->
+    <section class="timeline">
+
+      <div class="timeline-header">
+        <h2>THE JOURNEY</h2>
+        <span class="trip-date">01 — 12 JUN 2026</span>
+      </div>
+
+
+      <!-- Day 01 -->
+      <article class="day">
+
+        <div class="day-heading">
+          <div class="day-number">01</div>
+          <div class="day-place">CHIANG MAI</div>
+        </div>
+
+        <div class="event">
+
+          <div class="event-time">
+            09:30
+          </div>
+
+          <div class="event-content">
+
+            <div class="event-title">
+              Arrival
+            </div>
+
+            <div class="event-location">
+              Chiang Mai International Airport
+            </div>
+
+            <p class="event-note">
+              First morning in Thailand. The air felt warmer than expected,
+              and everything suddenly became very slow.
+            </p>
+
+            <div class="expense">
+              ฿ 450 · Airport transfer
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="event">
+
+          <div class="event-time">
+            14:20
+          </div>
+
+          <div class="event-content">
+
+            <div class="event-title">
+              Old Town
+            </div>
+
+            <div class="event-location">
+              Wat Chedi Luang
+            </div>
+
+            <p class="event-note">
+              Wandering without a plan.
+            </p>
+
+            <img
+              class="event-image"
+              src="https://images.unsplash.com/photo-1598935898639-8158b9f4b6c1?auto=format&fit=crop&w=900&q=80"
+              alt="Thailand temple"
+            />
+
+            <div class="expense">
+              ฿ 120 · Temple & coffee
+            </div>
+
+          </div>
+
+        </div>
+
+      </article>
+
+
+      <!-- Day 04 -->
+      <article class="day">
+
+        <div class="day-heading">
+          <div class="day-number">04</div>
+          <div class="day-place">CHIANG MAI</div>
+        </div>
+
+        <div class="event">
+
+          <div class="event-time">
+            07:10
+          </div>
+
+          <div class="event-content">
+
+            <div class="event-title">
+              Mountain Morning
+            </div>
+
+            <div class="event-location">
+              Doi Suthep
+            </div>
+
+            <p class="event-note">
+              Woke up early for the first time on this trip.
+              Worth it.
+            </p>
+
+            <img
+              class="event-image"
+              src="https://images.unsplash.com/photo-1528181304800-259b08848526?auto=format&fit=crop&w=900&q=80"
+              alt="Thailand landscape"
+            />
+
+          </div>
+
+        </div>
+
+      </article>
+
+
+      <!-- Day 07 -->
+      <article class="day">
+
+        <div class="day-heading">
+          <div class="day-number">07</div>
+          <div class="day-place">PHUKET</div>
+        </div>
+
+        <div class="event">
+
+          <div class="event-time">
+            17:40
+          </div>
+
+          <div class="event-content">
+
+            <div class="event-title">
+              Sea
+            </div>
+
+            <div class="event-location">
+              Kata Beach
+            </div>
+
+            <p class="event-note">
+              The kind of evening where there is nothing to record,
+              except that you want to remember it.
+            </p>
+
+            <img
+              class="event-image"
+              src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80"
+              alt="Beach sunset"
+            />
+
+            <div class="expense">
+              ฿ 280 · Dinner
+            </div>
+
+          </div>
+
+        </div>
+
+      </article>
+
+    </section>
+
+
+    <!-- Map -->
+    <aside class="map-panel">
+
+      <div class="map-title">
+        THAILAND · JOURNEY MAP
+      </div>
+
+      <div class="map">
+
+        <div class="route"></div>
+
+        <div class="map-point point-1"></div>
+        <div class="map-point point-2"></div>
+        <div class="map-point point-3"></div>
+
+        <div class="map-label label-1">
+          Chiang Mai
+        </div>
+
+        <div class="map-label label-2">
+          Phuket
+        </div>
+
+        <div class="map-label label-3">
+          Bangkok
+        </div>
+
+      </div>
+
+      <div class="map-footer">
+
+        <div class="map-caption">
+          3 cities · 12 days · 1,486 km
+        </div>
+
+        <div class="total">
+          Total · ฿ 18,420
+        </div>
+
+      </div>
+
+    </aside>
+
+  </main>
+
+
+  <!-- Footer -->
+  <footer>
+    <span>TRIPLOG</span>
+    <span>YOUR JOURNEY, BEAUTIFULLY REMEMBERED.</span>
+  </footer>
+
+
 </body>
 </html>
