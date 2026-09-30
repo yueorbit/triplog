@@ -1,575 +1,560 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TripLog — Travel, remembered.</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap');
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="TripLog — your journey, in time and place." />
 
-:root {
-  --bg:#f5f3ee; --paper:#fbfaf7; --ink:#292b27;
-  --muted:#898a80; --line:#e3e0d8; --accent:#697565;
-  --dark:#292b27; --white:#fff;
-}
-* {box-sizing:border-box}
-body {margin:0;background:var(--bg);color:var(--ink);
-  font-family:'DM Sans',Arial,sans-serif;font-size:14px}
-button,input,textarea,select {font:inherit}
-button {cursor:pointer}
-header {height:70px;padding:0 5%;display:flex;align-items:center;
-  justify-content:space-between;border-bottom:1px solid var(--line)}
-.logo {font:25px 'Playfair Display',serif;letter-spacing:-.5px}
-.header-right {display:flex;align-items:center;gap:18px}
-.header-label {font-size:11px;color:var(--muted);letter-spacing:1.5px}
-.btn {border:1px solid var(--ink);background:transparent;color:var(--ink);
-  border-radius:30px;padding:10px 17px;font-size:12px;transition:.2s}
-.btn:hover,.btn.primary {background:var(--dark);color:white}
-.btn.primary:hover {opacity:.8}
-main {max-width:1400px;margin:auto;padding:0 5% 70px}
-.hero {padding:65px 0 42px;display:flex;justify-content:space-between;
-  align-items:end;gap:20px}
-.eyebrow {font-size:10px;letter-spacing:2px;color:var(--muted);
-  text-transform:uppercase;margin-bottom:15px}
-h1 {font:normal clamp(44px,6vw,78px)/1.02 'Playfair Display',serif;
-  letter-spacing:-2.5px;margin:0}
-.hero-desc {max-width:300px;color:var(--muted);font-size:13px;
-  line-height:1.8;margin:0 0 5px}
-.trip-bar {display:flex;align-items:center;gap:12px;margin-bottom:28px;
-  padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.trip-select {border:0;background:transparent;color:var(--ink);
-  font:17px 'Playfair Display',serif;max-width:240px;outline:none}
-.trip-meta {font-size:11px;color:var(--muted);flex:1}
-.trip-layout {display:grid;grid-template-columns:minmax(320px, .88fr) 1.12fr;gap:44px}
-.timeline-header {display:flex;justify-content:space-between;align-items:center;
-  padding:0 0 15px;border-bottom:1px solid var(--line)}
-.section-title {font-size:11px;letter-spacing:1.6px;font-weight:600}
-.subtle {font-size:11px;color:var(--muted)}
-.day {padding:25px 0;border-bottom:1px solid var(--line)}
-.day-heading {display:flex;justify-content:space-between;align-items:baseline;
-  margin-bottom:22px}
-.day-num {font:26px 'Playfair Display',serif}
-.day-city {font-size:10px;letter-spacing:1.5px;color:var(--muted)}
-.entry {display:grid;grid-template-columns:47px 1fr;gap:12px;
-  margin-bottom:23px;cursor:pointer}
-.entry:last-child {margin-bottom:0}
-.entry-time {font-size:10px;color:var(--muted);padding-top:5px}
-.entry-body {border-left:1px solid var(--line);padding:0 0 0 17px;
-  position:relative;min-width:0}
-.entry-body:before {content:"";position:absolute;left:-4px;top:6px;
-  width:7px;height:7px;background:var(--accent);border-radius:50%}
-.entry.selected .entry-body:before {background:#b27c4c;box-shadow:0 0 0 4px #b27c4c22}
-.entry-title {font:19px 'Playfair Display',serif;margin-bottom:3px}
-.entry-place {font-size:11px;color:var(--muted);margin-bottom:9px}
-.entry-note {font-size:12px;color:#62635b;line-height:1.7;white-space:pre-wrap}
-.entry-photo {width:100%;max-height:230px;object-fit:cover;margin-top:12px;
-  filter:saturate(.82);display:block}
-.entry-foot {display:flex;justify-content:space-between;align-items:center;
-  margin-top:10px;color:var(--muted);font-size:10px;gap:8px}
-.entry-actions {display:flex;gap:12px;opacity:0;transition:.2s}
-.entry:hover .entry-actions,.entry.selected .entry-actions {opacity:1}
-.text-btn {border:0;background:none;color:var(--muted);font-size:10px;padding:0}
-.text-btn:hover {color:var(--ink)}
-.add-entry {margin-top:20px;width:100%;border:1px dashed #c9c6bc;
-  padding:13px;background:transparent;color:var(--muted);font-size:11px}
-.add-entry:hover {border-color:var(--accent);color:var(--ink)}
-.map-panel {height:590px;position:sticky;top:18px;background:#e9e7df;
-  overflow:hidden;isolation:isolate}
-.map-heading {position:absolute;z-index:3;top:18px;left:18px;
-  padding:10px 13px;background:#fbfaf7e8;font-size:10px;letter-spacing:1px}
-.map-canvas {position:absolute;inset:0;overflow:hidden;
-  background-color:#e8e6dd;
-  background-image:linear-gradient(35deg,transparent 47%,#fff9 48%,#fff9 49%,transparent 50%),
-  linear-gradient(125deg,transparent 35%,#d7ddd0 35.5%,#d7ddd0 39%,transparent 39.5%),
-  repeating-linear-gradient(0deg,transparent 0 75px,#ffffff35 76px 77px),
-  repeating-linear-gradient(90deg,transparent 0 90px,#ffffff30 91px 92px)}
-.map-canvas:before,.map-canvas:after {content:"";position:absolute;border-radius:50%;
-  background:#d9dfd1;opacity:.75;z-index:-1}
-.map-canvas:before {width:65%;height:35%;left:10%;top:25%;transform:rotate(-25deg)}
-.map-canvas:after {width:55%;height:27%;right:-15%;bottom:13%;transform:rotate(22deg)}
-.route-svg {position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.route-svg path {fill:none;stroke:#697565;stroke-width:1.5;stroke-dasharray:5 6}
-.pin {position:absolute;transform:translate(-50%,-50%);border:0;background:none;
-  padding:0;z-index:2;text-align:left;color:var(--ink)}
-.pin-dot {width:15px;height:15px;display:block;border-radius:50%;
-  background:#30342d;border:3px solid #fbfaf7;box-shadow:0 2px 7px #0003}
-.pin.active .pin-dot {background:#b27c4c;box-shadow:0 0 0 5px #b27c4c30}
-.pin-label {display:block;margin:5px 0 0 10px;padding:4px 7px;
-  background:#fbfaf7d9;font-size:10px;white-space:nowrap}
-.map-caption {position:absolute;bottom:18px;left:18px;right:18px;
-  display:flex;justify-content:space-between;align-items:end;gap:10px}
-.map-info {background:#fbfaf7e8;padding:10px 13px;font-size:10px;color:var(--muted)}
-.total-box {background:var(--dark);color:white;padding:12px 15px;font-size:11px}
-.total-box strong {font-size:15px;font-weight:500;display:block;margin-top:3px}
-.empty {padding:45px 20px;text-align:center;color:var(--muted);
-  border-bottom:1px solid var(--line);line-height:1.8}
-.empty strong {display:block;color:var(--ink);font:20px 'Playfair Display',serif;
-  margin-bottom:8px}
-footer {border-top:1px solid var(--line);padding:25px 5%;
-  display:flex;justify-content:space-between;color:var(--muted);
-  font-size:10px;letter-spacing:1px}
-.modal-backdrop {position:fixed;inset:0;background:#20221f77;z-index:10;
-  display:none;align-items:center;justify-content:center;padding:16px}
-.modal-backdrop.open {display:flex}
-.modal {background:var(--paper);width:min(500px,100%);max-height:90vh;
-  overflow:auto;padding:28px}
-.modal-top {display:flex;justify-content:space-between;align-items:center;
-  margin-bottom:23px}
-.modal h2 {font:25px 'Playfair Display',serif;font-weight:400;margin:0}
-.close {border:0;background:none;font-size:23px;color:var(--muted)}
-.field {margin-bottom:15px}
-.field label {display:block;font-size:10px;letter-spacing:1px;
-  color:var(--muted);margin-bottom:7px;text-transform:uppercase}
-.field input,.field textarea,.field select {width:100%;padding:11px 12px;
-  border:1px solid var(--line);background:white;outline:none;color:var(--ink);
-  border-radius:0;font-size:13px}
-.field input:focus,.field textarea:focus {border-color:var(--accent)}
-.field textarea {min-height:85px;resize:vertical}
-.field-row {display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.modal-actions {display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
-.photo-preview {width:100%;max-height:160px;object-fit:cover;margin-top:8px;display:none}
-.hint {font-size:10px;color:var(--muted);line-height:1.6;margin-top:5px}
-@media(max-width:850px) {
-  header {padding:0 22px}.header-label {display:none}
-  main {padding:0 22px 50px}.hero {padding:48px 0 35px;display:block}
-  .hero-desc {margin-top:18px}.trip-layout {display:flex;flex-direction:column;gap:35px}
-  .map-panel {position:relative;top:0;height:430px;order:-1}
-  .entry-actions {opacity:1}
-  footer {padding:22px}
-}
-@media(max-width:480px) {
-  .trip-bar {flex-wrap:wrap}.trip-meta {flex-basis:100%;order:3}
-  .field-row {grid-template-columns:1fr}
-  .map-panel {height:350px}
-}
-</style>
+  <title>TripLog</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap"
+    rel="stylesheet"
+  >
+
+  <!-- TripLog stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- MapLibre stylesheet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css"
+  />
 </head>
+
 <body>
-<header>
-  <div class="logo">TripLog</div>
-  <div class="header-right">
-    <span class="header-label">YOUR JOURNEY, BEAUTIFULLY REMEMBERED</span>
-    <button class="btn primary" id="newTripBtn">＋ New Trip</button>
-  </div>
-</header>
 
-<main>
-  <section class="hero">
-    <div>
-      <div class="eyebrow">PERSONAL TRAVEL JOURNAL</div>
-      <h1 id="heroTitle">A place for<br>your memories.</h1>
+  <!-- =========================
+       TOP NAVIGATION
+  ========================== -->
+
+  <header class="topbar">
+
+    <a class="brand" href="#">
+      TripLog
+    </a>
+
+    <div class="topbar-actions">
+
+      <button
+        class="ghost-btn"
+        id="editTripBtn"
+      >
+        Edit trip
+      </button>
+
+      <button
+        class="primary-btn"
+        id="newTripBtn"
+      >
+        New trip
+      </button>
+
     </div>
-    <p class="hero-desc" id="heroDesc">
-      Every journey has a story. Collect the places,
-      moments and little things you want to remember.
-    </p>
-  </section>
 
-  <div class="trip-bar">
-    <select class="trip-select" id="tripSelect" aria-label="Choose trip"></select>
-    <span class="trip-meta" id="tripMeta">Create a trip to begin.</span>
-    <button class="btn" id="editTripBtn">Edit trip</button>
-  </div>
+  </header>
 
-  <div class="trip-layout">
-    <section class="timeline">
-      <div class="timeline-header">
-        <span class="section-title">THE JOURNEY</span>
-        <span class="subtle" id="entryCount">0 MOMENTS</span>
+
+  <!-- =========================
+       MAIN CONTENT
+  ========================== -->
+
+  <main>
+
+    <!-- HERO -->
+
+    <section class="hero">
+
+      <div>
+
+        <p class="eyebrow">
+          TRAVEL MEMORY
+        </p>
+
+        <h1 id="tripTitle">
+          Thailand
+        </h1>
+
+        <p
+          class="hero-subtitle"
+          id="tripMeta"
+        >
+          12 days · 3 cities
+        </p>
+
       </div>
-      <div id="timelineContent"></div>
-      <button class="add-entry" id="addEntryBtn">＋ Add a moment</button>
+
+
+      <div class="hero-stat">
+
+        <span id="totalSpend">
+          ¥0
+        </span>
+
+        <small>
+          Total spend
+        </small>
+
+      </div>
+
     </section>
 
-    <aside class="map-panel">
-      <div class="map-heading">JOURNEY MAP</div>
-      <div class="map-canvas" id="mapCanvas">
-        <svg class="route-svg" id="routeSvg" viewBox="0 0 600 600" preserveAspectRatio="none">
-          <path id="routePath" d=""></path>
-        </svg>
-        <div id="mapPins"></div>
-      </div>
-      <div class="map-caption">
-        <div class="map-info" id="mapInfo">Your places will appear here.</div>
-        <div class="total-box">TOTAL SPENT<strong id="totalSpent">฿0</strong></div>
-      </div>
-    </aside>
-  </div>
-</main>
 
-<footer>
-  <span>TRIPLOG</span><span>TIME · PLACE · MEMORY</span>
-</footer>
+    <!-- =========================
+         MAIN WORKSPACE
+    ========================== -->
 
-<div class="modal-backdrop" id="modalBackdrop">
-  <div class="modal">
-    <div class="modal-top">
-      <h2 id="modalTitle">New Trip</h2>
-      <button class="close" id="closeModal" aria-label="Close">×</button>
-    </div>
-    <form id="tripForm" hidden>
-      <div class="field">
-        <label for="tripName">Trip name</label>
-        <input id="tripName" required placeholder="e.g. Summer in Thailand">
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="tripStart">Start date</label>
-          <input id="tripStart" type="date" required>
-        </div>
-        <div class="field">
-          <label for="tripEnd">End date</label>
-          <input id="tripEnd" type="date" required>
-        </div>
-      </div>
-      <div class="field">
-        <label for="tripIntro">A little about this trip</label>
-        <textarea id="tripIntro" placeholder="What is this journey about?"></textarea>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn" id="cancelTrip">Cancel</button>
-        <button type="submit" class="btn primary">Save trip</button>
-      </div>
-    </form>
+    <section class="workspace">
 
-    <form id="entryForm" hidden>
-      <div class="field-row">
-        <div class="field">
-          <label for="entryDate">Date</label>
-          <input id="entryDate" type="date" required>
-        </div>
-        <div class="field">
-          <label for="entryTime">Time</label>
-          <input id="entryTime" type="time">
-        </div>
-      </div>
-      <div class="field">
-        <label for="entryTitle">Moment</label>
-        <input id="entryTitle" required placeholder="e.g. A slow morning">
-      </div>
-      <div class="field">
-        <label for="entryPlace">Place</label>
-        <input id="entryPlace" placeholder="e.g. Old Town, Chiang Mai">
-      </div>
-      <div class="field">
-        <label for="entryNote">Thoughts & memories</label>
-        <textarea id="entryNote" placeholder="What do you want to remember?"></textarea>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="entryExpense">Expense</label>
-          <input id="entryExpense" type="number" min="0" step="0.01" placeholder="0">
-        </div>
-        <div class="field">
-          <label for="entryCurrency">Currency</label>
-          <select id="entryCurrency">
-            <option value="฿">THB ฿</option>
-            <option value="¥">CNY ¥</option>
-            <option value="$">USD $</option>
-            <option value="€">EUR €</option>
-            <option value="£">GBP £</option>
-            <option value="₩">KRW ₩</option>
-            <option value="¥ JP">JPY ¥</option>
-          </select>
-        </div>
-      </div>
-      <div class="field">
-        <label for="entryPhoto">Photo</label>
-        <input id="entryPhoto" type="file" accept="image/*">
-        <img class="photo-preview" id="photoPreview" alt="Photo preview">
-        <div class="hint">Photos are stored in this browser. Large images are resized automatically.</div>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn" id="cancelEntry">Cancel</button>
-        <button type="submit" class="btn primary">Save moment</button>
-      </div>
-    </form>
-  </div>
-</div>
 
-<script>
-const STORAGE_KEY = "triplog-v1-data";
-const $ = id => document.getElementById(id);
+      <!-- =========================
+           TIMELINE
+      ========================== -->
 
-let trips = loadTrips();
-let activeTripId = trips[0]?.id || null;
-let editingEntryId = null;
-let editingTrip = false;
-let photoData = "";
+      <aside class="timeline-panel">
 
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
-}
-function loadTrips() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-  catch { return []; }
-}
-function saveTrips() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
-  } catch (e) {
-    alert("Storage is full. Try removing some large photos.");
-  }
-}
-function activeTrip() {
-  return trips.find(t => t.id === activeTripId);
-}
-function fmtDate(date) {
-  if (!date) return "";
-  return new Date(date + "T12:00:00").toLocaleDateString("en-US", {
-    day:"2-digit", month:"short", year:"numeric"
-  });
-}
-function dateRange(start,end) {
-  if (!start) return "";
-  const a = new Date(start+"T12:00:00");
-  const b = new Date((end||start)+"T12:00:00");
-  const m1 = a.toLocaleDateString("en-US",{month:"short"}).toUpperCase();
-  const m2 = b.toLocaleDateString("en-US",{month:"short"}).toUpperCase();
-  if (a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth())
-    return `${a.getDate()} — ${b.getDate()} ${m1} ${a.getFullYear()}`;
-  return `${a.getDate()} ${m1} — ${b.getDate()} ${m2} ${b.getFullYear()}`;
-}
-function money(n) {
-  return Number(n||0).toLocaleString("en-US",{maximumFractionDigits:2});
-}
-function escapeHtml(value="") {
-  return String(value).replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  })[c]);
-}
-function getEntries() {
-  return (activeTrip()?.entries || []).slice().sort((a,b) =>
-    (a.date+a.time).localeCompare(b.date+b.time));
-}
-function render() {
-  const trip = activeTrip();
-  $("tripSelect").innerHTML = trips.length
-    ? trips.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("")
-    : `<option value="">No trips yet</option>`;
-  $("tripSelect").value = trip?.id || "";
-  $("editTripBtn").disabled = !trip;
-  $("addEntryBtn").disabled = !trip;
+        <div class="section-head">
 
-  if (!trip) {
-    $("heroTitle").innerHTML = "A place for<br>your memories.";
-    $("heroDesc").textContent = "Every journey has a story. Create your first trip and start collecting moments.";
-    $("tripMeta").textContent = "Create a trip to begin.";
-    $("timelineContent").innerHTML = `<div class="empty"><strong>Your story starts here.</strong>Create a trip, then add places, photos, thoughts and expenses along the way.</div>`;
-    $("entryCount").textContent = "0 MOMENTS";
-    $("mapPins").innerHTML = "";
-    $("routePath").setAttribute("d","");
-    $("mapInfo").textContent = "Your places will appear here.";
-    $("totalSpent").textContent = "฿0";
-    return;
-  }
+          <div>
 
-  $("heroTitle").innerHTML = `${escapeHtml(trip.name).replace(/\n/g,"<br>")}`;
-  $("heroDesc").textContent = trip.intro || "A journey remembered through time, place and little moments.";
-  $("tripMeta").textContent = dateRange(trip.start,trip.end);
-  const entries = getEntries();
-  $("entryCount").textContent = `${entries.length} ${entries.length===1?"MOMENT":"MOMENTS"}`;
+            <span class="section-kicker">
+              TIMELINE
+            </span>
 
-  const days = {};
-  entries.forEach(e => (days[e.date] ||= []).push(e));
-  $("timelineContent").innerHTML = Object.keys(days).sort().map((date,i)=>{
-    const list = days[date];
-    const city = list.find(e=>e.place)?.place || "A DAY IN THE JOURNEY";
-    return `<article class="day">
-      <div class="day-heading">
-        <div class="day-num">${String(i+1).padStart(2,"0")}</div>
-        <div class="day-city">${escapeHtml(city.toUpperCase())} · ${escapeHtml(fmtDate(date).toUpperCase())}</div>
-      </div>
-      ${list.map(e=>`
-        <div class="entry ${e.id===selectedEntryId?"selected":""}" data-entry="${e.id}">
-          <div class="entry-time">${escapeHtml(e.time||"—")}</div>
-          <div class="entry-body">
-            <div class="entry-title">${escapeHtml(e.title)}</div>
-            ${e.place?`<div class="entry-place">⌖ ${escapeHtml(e.place)}</div>`:""}
-            ${e.note?`<div class="entry-note">${escapeHtml(e.note)}</div>`:""}
-            ${e.photo?`<img class="entry-photo" src="${e.photo}" alt="Travel memory">`:""}
-            <div class="entry-foot">
-              <span>${e.expense?`${escapeHtml(e.currency||"฿")} ${money(e.expense)}`:""}</span>
-              <span class="entry-actions">
-                <button class="text-btn" data-edit="${e.id}">EDIT</button>
-                <button class="text-btn" data-delete="${e.id}">DELETE</button>
-              </span>
-            </div>
+            <h2>
+              Your journey
+            </h2>
+
           </div>
-        </div>`).join("")}
-    </article>`;
-  }).join("") || `<div class="empty"><strong>No moments yet.</strong>Add your first entry to start building your travel story.</div>`;
 
-  const total = entries.reduce((sum,e)=>sum+Number(e.expense||0),0);
-  const currency = entries.find(e=>e.expense && e.currency)?.currency || "฿";
-  $("totalSpent").textContent = `${currency}${money(total)}`;
-  renderMap(entries);
-}
-let selectedEntryId = null;
 
-function renderMap(entries) {
-  const places = [];
-  entries.forEach(e=>{
-    if (e.place && !places.some(p=>p.place.toLowerCase()===e.place.toLowerCase()))
-      places.push({place:e.place,entry:e});
-  });
-  const coords = places.map((p,i)=>{
-    const n = Math.max(places.length-1,1);
-    return { ...p, x: 18 + (i/n)*64, y: 68 - (i/n)*40 + Math.sin(i*2.1)*9 };
-  });
-  $("mapPins").innerHTML = coords.map((p,i)=>`
-    <button class="pin ${p.entry.id===selectedEntryId?"active":""}"
-      style="left:${p.x}%;top:${p.y}%"
-      data-pin="${p.entry.id}" title="${escapeHtml(p.place)}">
-      <span class="pin-dot"></span>
-      <span class="pin-label">${escapeHtml(p.place)}</span>
-    </button>`).join("");
+          <button
+            class="icon-btn"
+            id="addMomentBtn"
+            title="Add moment"
+          >
+            +
+          </button>
 
-  const points = coords.map(p=>`${p.x*6},${p.y*6}`).join(" ");
-  $("routePath").setAttribute("d", coords.length>1
-    ? "M "+coords.map(p=>`${p.x*6} ${p.y*6}`).join(" L ") : "");
-  $("mapInfo").textContent = places.length
-    ? `${places.length} ${places.length===1?"PLACE":"PLACES"} · Select a pin to view its moment`
-    : "Add a place to see it on your journey map.";
-}
-function openModal(form) {
-  $("modalBackdrop").classList.add("open");
-  $("tripForm").hidden = form!=="trip";
-  $("entryForm").hidden = form!=="entry";
-}
-function closeModal() {
-  $("modalBackdrop").classList.remove("open");
-  $("tripForm").reset(); $("entryForm").reset();
-  $("photoPreview").style.display="none";
-  photoData=""; editingEntryId=null;
-}
-function openTripForm(edit=false) {
-  const trip = activeTrip();
-  editingTrip=edit;
-  $("modalTitle").textContent=edit?"Edit trip":"New Trip";
-  $("tripName").value=edit?trip.name:"";
-  $("tripStart").value=edit?trip.start:"";
-  $("tripEnd").value=edit?trip.end:"";
-  $("tripIntro").value=edit?(trip.intro||""):"";
-  openModal("trip");
-}
-function openEntryForm(entry=null) {
-  if (!activeTrip()) return;
-  editingEntryId=entry?.id||null;
-  $("modalTitle").textContent=entry?"Edit moment":"Add a moment";
-  $("entryDate").value=entry?.date||activeTrip().start||new Date().toISOString().slice(0,10);
-  $("entryTime").value=entry?.time||"";
-  $("entryTitle").value=entry?.title||"";
-  $("entryPlace").value=entry?.place||"";
-  $("entryNote").value=entry?.note||"";
-  $("entryExpense").value=entry?.expense||"";
-  $("entryCurrency").value=entry?.currency||"฿";
-  photoData=entry?.photo||"";
-  if(photoData) {
-    $("photoPreview").src=photoData;
-    $("photoPreview").style.display="block";
-  } else $("photoPreview").style.display="none";
-  openModal("entry");
-}
-function selectEntry(id) {
-  selectedEntryId=id;
-  render();
-  const el=document.querySelector(`[data-entry="${id}"]`);
-  if(el) el.scrollIntoView({behavior:"smooth",block:"center"});
-}
-$("newTripBtn").addEventListener("click",()=>openTripForm(false));
-$("editTripBtn").addEventListener("click",()=>activeTrip()&&openTripForm(true));
-$("addEntryBtn").addEventListener("click",()=>openEntryForm());
-$("closeModal").addEventListener("click",closeModal);
-$("cancelTrip").addEventListener("click",closeModal);
-$("cancelEntry").addEventListener("click",closeModal);
-$("modalBackdrop").addEventListener("click",e=>{
-  if(e.target===$("modalBackdrop")) closeModal();
-});
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
+        </div>
 
-$("tripSelect").addEventListener("change",e=>{
-  activeTripId=e.target.value||null; selectedEntryId=null; render();
-});
-$("tripForm").addEventListener("submit",e=>{
-  e.preventDefault();
-  const name=$("tripName").value.trim();
-  const start=$("tripStart").value,end=$("tripEnd").value;
-  if(!name||!start||!end||end<start) {
-    alert("Please enter a trip name and valid dates."); return;
-  }
-  if(editingTrip) {
-    const t=activeTrip();
-    t.name=name;t.start=start;t.end=end;t.intro=$("tripIntro").value.trim();
-  } else {
-    const t={id:uid(),name,start,end,intro:$("tripIntro").value.trim(),entries:[]};
-    trips.push(t);activeTripId=t.id;
-  }
-  saveTrips();closeModal();render();
-});
-$("entryForm").addEventListener("submit",e=>{
-  e.preventDefault();
-  const trip=activeTrip();if(!trip)return;
-  const entry={
-    id:editingEntryId||uid(),
-    date:$("entryDate").value,time:$("entryTime").value,
-    title:$("entryTitle").value.trim(),
-    place:$("entryPlace").value.trim(),
-    note:$("entryNote").value.trim(),
-    expense:Number($("entryExpense").value||0),
-    currency:$("entryCurrency").value,photo:photoData
-  };
-  if(!entry.date||!entry.title){alert("Please add a date and title.");return;}
-  if(editingEntryId) {
-    const index=trip.entries.findIndex(x=>x.id===editingEntryId);
-    if(index>=0)trip.entries[index]=entry;
-  } else trip.entries.push(entry);
-  selectedEntryId=entry.id;
-  saveTrips();closeModal();render();
-});
-$("entryPhoto").addEventListener("change",e=>{
-  const file=e.target.files[0];if(!file)return;
-  if(!file.type.startsWith("image/")){alert("Please choose an image.");return;}
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const img=new Image();
-    img.onload=()=>{
-      const max=1200,scale=Math.min(1,max/Math.max(img.width,img.height));
-      const canvas=document.createElement("canvas");
-      canvas.width=Math.round(img.width*scale);
-      canvas.height=Math.round(img.height*scale);
-      canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
-      photoData=canvas.toDataURL("image/jpeg",.78);
-      $("photoPreview").src=photoData;
-      $("photoPreview").style.display="block";
-    };
-    img.src=reader.result;
-  };
-  reader.readAsDataURL(file);
-});
-$("timelineContent").addEventListener("click",e=>{
-  const edit=e.target.closest("[data-edit]");
-  const del=e.target.closest("[data-delete]");
-  const entry=e.target.closest("[data-entry]");
-  if(edit) {
-    const item=activeTrip().entries.find(x=>x.id===edit.dataset.edit);
-    if(item)openEntryForm(item);
-    return;
-  }
-  if(del) {
-    if(!confirm("Delete this moment?"))return;
-    activeTrip().entries=activeTrip().entries.filter(x=>x.id!==del.dataset.delete);
-    if(selectedEntryId===del.dataset.delete)selectedEntryId=null;
-    saveTrips();render();return;
-  }
-  if(entry)selectEntry(entry.dataset.entry);
-});
-$("mapPins").addEventListener("click",e=>{
-  const pin=e.target.closest("[data-pin]");
-  if(pin)selectEntry(pin.dataset.pin);
-});
-render();
-</script>
+
+        <div
+          id="timeline"
+          class="timeline"
+        ></div>
+
+
+        <button
+          class="add-entry-btn"
+          id="addMomentBottom"
+        >
+          + Add moment
+        </button>
+
+      </aside>
+
+
+      <!-- =========================
+           MAP
+      ========================== -->
+
+      <section class="map-panel">
+
+        <div id="map"></div>
+
+
+        <div class="map-overlay">
+
+          <div class="map-search-wrap">
+
+            <input
+              id="placeSearch"
+              type="search"
+              placeholder="Search a place or address..."
+              autocomplete="off"
+            />
+
+            <button id="searchPlaceBtn">
+              Search
+            </button>
+
+          </div>
+
+
+          <div
+            id="searchResults"
+            class="search-results hidden"
+          ></div>
+
+        </div>
+
+
+        <div class="map-note">
+          OpenStreetMap data · MapLibre
+        </div>
+
+      </section>
+
+    </section>
+
+  </main>
+
+
+  <!-- =========================
+       TRIP MODAL
+  ========================== -->
+
+  <div
+    class="modal hidden"
+    id="tripModal"
+  >
+
+    <div class="modal-card">
+
+      <button
+        class="modal-close"
+        data-close="tripModal"
+      >
+        ×
+      </button>
+
+
+      <p class="section-kicker">
+        TRIP
+      </p>
+
+
+      <h2 id="tripModalTitle">
+        New trip
+      </h2>
+
+
+      <form id="tripForm">
+
+        <label>
+
+          Trip name
+
+          <input
+            id="tripName"
+            required
+          />
+
+        </label>
+
+
+        <div class="two-col">
+
+          <label>
+
+            Start date
+
+            <input
+              id="tripStart"
+              type="date"
+              required
+            />
+
+          </label>
+
+
+          <label>
+
+            End date
+
+            <input
+              id="tripEnd"
+              type="date"
+              required
+            />
+
+          </label>
+
+        </div>
+
+
+        <button
+          class="primary-btn wide"
+          type="submit"
+        >
+          Save trip
+        </button>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       MOMENT MODAL
+  ========================== -->
+
+  <div
+    class="modal hidden"
+    id="momentModal"
+  >
+
+    <div class="modal-card large">
+
+      <button
+        class="modal-close"
+        data-close="momentModal"
+      >
+        ×
+      </button>
+
+
+      <p class="section-kicker">
+        MOMENT
+      </p>
+
+
+      <h2 id="momentModalTitle">
+        Add moment
+      </h2>
+
+
+      <form id="momentForm">
+
+
+        <!-- DATE + TIME -->
+
+        <div class="two-col">
+
+          <label>
+
+            Date
+
+            <input
+              id="momentDate"
+              type="date"
+              required
+            />
+
+          </label>
+
+
+          <label>
+
+            Time
+
+            <input
+              id="momentTime"
+              type="time"
+            />
+
+          </label>
+
+        </div>
+
+
+        <!-- TITLE -->
+
+        <label>
+
+          Title
+
+          <input
+            id="momentTitle"
+            placeholder="e.g. Morning in the old city"
+            required
+          />
+
+        </label>
+
+
+        <!-- PLACE -->
+
+        <label>
+
+          Place
+
+          <div class="place-field">
+
+            <input
+              id="momentPlace"
+              placeholder="Search a place..."
+              autocomplete="off"
+            />
+
+            <button
+              type="button"
+              id="momentPlaceSearch"
+            >
+              Find
+            </button>
+
+          </div>
+
+        </label>
+
+
+        <div
+          id="momentSearchResults"
+          class="inline-results hidden"
+        ></div>
+
+
+        <!-- REAL LOCATION DATA -->
+
+        <input
+          id="momentLat"
+          type="hidden"
+        />
+
+        <input
+          id="momentLng"
+          type="hidden"
+        />
+
+        <input
+          id="momentAddress"
+          type="hidden"
+        />
+
+
+        <!-- THOUGHTS -->
+
+        <label>
+
+          Thoughts
+
+          <textarea
+            id="momentThoughts"
+            rows="4"
+            placeholder="A note, a feeling, a tiny memory..."
+          ></textarea>
+
+        </label>
+
+
+        <!-- EXPENSE -->
+
+        <div class="two-col">
+
+          <label>
+
+            Expense
+
+            <input
+              id="momentExpense"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0"
+            />
+
+          </label>
+
+
+          <label>
+
+            Currency
+
+            <select id="momentCurrency">
+
+              <option>
+                CNY
+              </option>
+
+              <option>
+                THB
+              </option>
+
+              <option>
+                USD
+              </option>
+
+            </select>
+
+          </label>
+
+        </div>
+
+
+        <!-- PHOTO -->
+
+        <label>
+
+          Photo
+
+          <input
+            id="momentPhoto"
+            type="file"
+            accept="image/*"
+          />
+
+        </label>
+
+
+        <div
+          id="photoPreview"
+          class="photo-preview"
+        ></div>
+
+
+        <!-- FORM ACTIONS -->
+
+        <div class="form-actions">
+
+          <button
+            type="button"
+            class="danger-btn hidden"
+            id="deleteMomentBtn"
+          >
+            Delete
+          </button>
+
+
+          <span></span>
+
+
+          <button
+            type="button"
+            class="ghost-btn"
+            data-close="momentModal"
+          >
+            Cancel
+          </button>
+
+
+          <button
+            class="primary-btn"
+            type="submit"
+          >
+            Save moment
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       JAVASCRIPT
+  ========================== -->
+
+  <!-- MapLibre -->
+  <script
+    src="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js"
+  ></script>
+
+
+  <!-- TripLog application -->
+  <script
+    type="module"
+    src="app.js"
+  ></script>
+
 </body>
 </html>
