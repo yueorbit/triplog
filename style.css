@@ -1242,3 +1242,78 @@ input[type="file"] {
   }
 
 }
+/* =========================================================
+   V0.2 Timeline ↔ Map interaction
+========================================================= */
+
+.timeline-card {
+  cursor: pointer;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    background 0.25s ease;
+}
+
+.timeline-card:hover {
+  transform: translateY(-2px);
+}
+
+.timeline-card.is-active {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.triplog-marker {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    width 0.2s ease,
+    height 0.2s ease;
+}
+
+.triplog-marker:hover,
+.triplog-marker.is-active {
+  width: 24px;
+  height: 24px;
+  transform: translateY(-3px);
+}
+
+.place-search-result {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.place-search-result:hover {
+  background: var(--surface);
+}
+
+.place-search-result strong {
+  color: var(--text);
+}
+
+.place-search-result span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.search-empty {
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
