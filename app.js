@@ -23,14 +23,16 @@ import {
 
 let data = loadData();
 
-let currentTripId = data.currentTripId || null;
+if (!data) {
+  data = createDefaultData();
+  saveData(data);
+}
+
+let currentTripId = data.currentTripId || data.trips?.[0]?.id || null;
 
 let editingMomentId = null;
-
 let editingTripId = null;
-
 let mapInstance = null;
-
 let selectedPhotoData = null;
 
 
