@@ -3,7 +3,8 @@ import {
   searchPlaces,
   flyToPlace,
   clearMarkers,
-  addPlaceMarker
+  addPlaceMarker,
+  setActiveMarker
 } from "./map/map.js";
 
 import {
@@ -13,27 +14,42 @@ import {
 
 
 /* =========================================================
-   TripLog App
-========================================================= */
-
-
-/* =========================================================
    STATE
 ========================================================= */
 
 let data = loadData();
 
-if (!data) {
+if (!data || !Array.isArray(data.trips)) {
   data = createDefaultData();
   saveData(data);
 }
 
-let currentTripId = data.currentTripId || data.trips?.[0]?.id || null;
+if (!data.currentTripId && data.trips.length > 0) {
+  data.currentTripId = data.trips[0].id;
+  saveData(data);
+}
+
+let currentTripId = data.currentTripId || null;
 
 let editingMomentId = null;
 let editingTripId = null;
+
 let mapInstance = null;
+
 let selectedPhotoData = null;
+
+
+/* =========================================================
+   DOM HELPERS
+========================================================= */
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function safeElement(id) {
+  return $(id) || null;
+}
 
 
 /* =========================================================
@@ -41,205 +57,1311 @@ let selectedPhotoData = null;
 ========================================================= */
 
 function createDefaultData() {
+  const tripId = createId("trip");
 
-  const tripId = createId();
+  const moment1 = createId("moment");
+  const moment2 = createId("moment");
+  const moment3 = createId("moment");
 
   return {
-
     currentTripId: tripId,
 
     trips: [
-
       {
-
         id: tripId,
-
         name: "Thailand",
-
         startDate: "2026-06-01",
-
         endDate: "2026-06-12",
 
         moments: [
-
           {
-
-            id: createId(),
-
+            id: moment1,
             date: "2026-06-01",
-
-            time: "10:30",
-
-            title: "Arrival in Chiang Mai",
-
+            time: "09:30",
+            title: "Arrive in Chiang Mai",
             place: "Chiang Mai International Airport",
-
-            address: "Chiang Mai, Thailand",
-
+            address: "",
             lat: 18.7668,
-
             lng: 98.9626,
-
-            thoughts:
-              "The trip finally begins. Warm air, slow streets, and the feeling that there is nowhere else I need to be.",
-
-            expense: 280,
-
-            currency: "THB",
-
+            thoughts: "The journey begins.",
+            expense: "",
+            currency: "CNY",
             photo: ""
-
           },
 
           {
-
-            id: createId(),
-
+            id: moment2,
             date: "2026-06-02",
-
-            time: "09:00",
-
-            title: "Morning in the old city",
-
+            time: "14:00",
+            title: "Old City",
             place: "Wat Chedi Luang",
-
-            address: "Phra Pok Klao Road, Chiang Mai, Thailand",
-
-            lat: 18.7868,
-
-            lng: 98.9853,
-
-            thoughts:
-              "Quiet morning. Walked without a destination and somehow ended up here.",
-
-            expense: 80,
-
-            currency: "THB",
-
+            address: "",
+            lat: 18.7870,
+            lng: 98.9868,
+            thoughts: "Walking through the old city.",
+            expense: "",
+            currency: "CNY",
             photo: ""
-
           },
 
           {
-
-            id: createId(),
-
+            id: moment3,
             date: "2026-06-06",
-
-            time: "16:20",
-
-            title: "Landing in Phuket",
-
+            time: "17:00",
+            title: "Arrive in Phuket",
             place: "Phuket International Airport",
-
-            address: "Phuket, Thailand",
-
+            address: "",
             lat: 8.1132,
-
             lng: 98.3169,
-
-            thoughts:
-              "A completely different landscape. The sea is already visible from the road.",
-
-            expense: 420,
-
-            currency: "THB",
-
+            thoughts: "A new part of the trip.",
+            expense: "",
+            currency: "CNY",
             photo: ""
-
           }
-
         ]
-
       }
-
     ]
-
   };
-
 }
 
 
 /* =========================================================
-   INIT DATA
+   ID
 ========================================================= */
 
-if (
-  !data ||
-  !Array.isArray(data.trips) ||
-  data.trips.length === 0
-) {
+function createId(prefix) {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
 
-  data = createDefaultData();
-
-  saveData(data);
-
-}
-
-
-if (!currentTripId) {
-
-  currentTripId = data.trips[0].id;
-
+  return `${prefix}-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 9)}`;
 }
 
 
 /* =========================================================
-   HELPERS
+   DATA HELPERS
 ========================================================= */
-
-function createId() {
-
-  return (
-    Date.now().toString(36) +
-    Math.random().toString(36).slice(2, 8)
-  );
-
-}
-
 
 function getCurrentTrip() {
-
   return data.trips.find(
-    trip => trip.id === currentTripId
+    (trip) => trip.id === currentTripId
+  ) || null;
+}
+
+function getMomentById(momentId) {
+  const trip = getCurrentTrip();
+
+  if (!trip) {
+    return null;
+  }
+
+  return trip.moments.find(
+    (moment) => moment.id === momentId
+  ) || null;
+}
+
+function persist() {
+  data.currentTripId = currentTripId;
+  saveData(data);
+}
+
+
+/* =========================================================
+   APP INIT
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  bindEvents();
+
+  try {
+    mapInstance = initMap("map");
+
+    if (mapInstance) {
+      mapInstance.on("load", () => {
+        renderAll();
+      });
+
+      // 地图加载失败时，不影响其他 UI
+      mapInstance.on("error", (event) => {
+        console.warn("Map error:", event?.error || event);
+      });
+    }
+  } catch (error) {
+    console.error("Map setup failed:", error);
+    mapInstance = null;
+  }
+
+  renderAll();
+});
+
+
+/* =========================================================
+   EVENT BINDING
+========================================================= */
+
+function bindEvents() {
+  $("new-trip")?.addEventListener("click", () => {
+    openTripModal();
+  });
+
+  $("edit-trip")?.addEventListener("click", () => {
+    const trip = getCurrentTrip();
+
+    if (trip) {
+      openTripModal(trip.id);
+    }
+  });
+
+  $("add-moment")?.addEventListener("click", () => {
+    openMomentModal();
+  });
+
+  $("trip-form")?.addEventListener("submit", handleTripSubmit);
+
+  $("moment-form")?.addEventListener(
+    "submit",
+    handleMomentSubmit
   );
 
+  $("delete-moment")?.addEventListener(
+    "click",
+    handleDeleteMoment
+  );
+
+  $("cancel-trip")?.addEventListener(
+    "click",
+    closeTripModal
+  );
+
+  $("cancel-moment")?.addEventListener(
+    "click",
+    closeMomentModal
+  );
+
+  $("close-trip-modal")?.addEventListener(
+    "click",
+    closeTripModal
+  );
+
+  $("close-moment-modal")?.addEventListener(
+    "click",
+    closeMomentModal
+  );
+
+  $("map-search-btn")?.addEventListener(
+    "click",
+    handleMapSearch
+  );
+
+  $("map-search")?.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleMapSearch();
+      }
+    }
+  );
+
+  $("moment-search-btn")?.addEventListener(
+    "click",
+    handleMomentPlaceSearch
+  );
+
+  $("moment-place-search")?.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleMomentPlaceSearch();
+      }
+    }
+  );
+
+  $("moment-photo")?.addEventListener(
+    "change",
+    handlePhotoChange
+  );
+
+  document.addEventListener(
+    "click",
+    handleGlobalClick
+  );
 }
 
 
-function save() {
+/* =========================================================
+   GLOBAL CLICK
+========================================================= */
 
-  data.currentTripId = currentTripId;
+function handleGlobalClick(event) {
+  const closeButton = event.target.closest(
+    "[data-close-modal]"
+  );
 
-  saveData(data);
+  if (closeButton) {
+    const modalId = closeButton.dataset.closeModal;
 
+    if (modalId === "trip-modal") {
+      closeTripModal();
+    }
+
+    if (modalId === "moment-modal") {
+      closeMomentModal();
+    }
+  }
+
+  if (event.target.classList.contains("modal")) {
+    event.target.classList.remove("is-open");
+  }
 }
 
 
-function escapeHtml(value = "") {
+/* =========================================================
+   RENDER ALL
+========================================================= */
 
-  return String(value)
+function renderAll() {
+  const trip = getCurrentTrip();
 
-    .replaceAll("&", "&amp;")
+  renderHero(trip);
+  renderTimeline(trip);
+  renderMap(trip);
+}
 
-    .replaceAll("<", "&lt;")
 
-    .replaceAll(">", "&gt;")
+/* =========================================================
+   HERO
+========================================================= */
 
-    .replaceAll('"', "&quot;")
+function renderHero(trip) {
+  if (!trip) {
+    return;
+  }
 
-    .replaceAll("'", "&#039;");
+  const title = safeElement("trip-title");
+  const meta = safeElement("trip-meta");
+  const totalSpend = safeElement("total-spend");
 
+  if (title) {
+    title.textContent = trip.name || "Untitled Trip";
+  }
+
+  if (meta) {
+    const dates = formatDateRange(
+      trip.startDate,
+      trip.endDate
+    );
+
+    meta.textContent = dates;
+  }
+
+  if (totalSpend) {
+    totalSpend.textContent = formatTripExpense(trip);
+  }
+}
+
+
+/* =========================================================
+   TIMELINE
+========================================================= */
+
+function renderTimeline(trip) {
+  const container = safeElement("timeline-list");
+
+  if (!container || !trip) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const moments = [...trip.moments].sort(
+    compareMoments
+  );
+
+  if (moments.length === 0) {
+    const empty = document.createElement("div");
+
+    empty.className = "empty-state";
+    empty.textContent =
+      "No moments yet. Add the first one.";
+
+    container.appendChild(empty);
+
+    return;
+  }
+
+  moments.forEach((moment) => {
+    const card = createMomentCard(moment);
+    container.appendChild(card);
+  });
+}
+
+
+function createMomentCard(moment) {
+  const article = document.createElement("article");
+
+  article.className = "timeline-card";
+  article.dataset.momentId = moment.id;
+
+  if (moment.lat != null && moment.lng != null) {
+    article.classList.add("has-location");
+  }
+
+  const date = document.createElement("div");
+  date.className = "timeline-date";
+  date.textContent = formatMomentDate(moment);
+
+  const content = document.createElement("div");
+  content.className = "timeline-content";
+
+  const title = document.createElement("h3");
+  title.textContent =
+    moment.title ||
+    moment.place ||
+    "Untitled moment";
+
+  content.appendChild(title);
+
+  if (moment.place) {
+    const place = document.createElement("div");
+    place.className = "timeline-place";
+    place.textContent = `📍 ${moment.place}`;
+    content.appendChild(place);
+  }
+
+  if (moment.thoughts) {
+    const thoughts = document.createElement("p");
+    thoughts.className = "timeline-thoughts";
+    thoughts.textContent = moment.thoughts;
+    content.appendChild(thoughts);
+  }
+
+  if (moment.expense) {
+    const expense = document.createElement("div");
+    expense.className = "timeline-expense";
+    expense.textContent =
+      `${moment.currency || "CNY"} ${moment.expense}`;
+
+    content.appendChild(expense);
+  }
+
+  if (moment.photo) {
+    const image = document.createElement("img");
+
+    image.className = "photo-thumb";
+    image.src = moment.photo;
+    image.alt = moment.title || "Travel memory";
+    image.loading = "lazy";
+
+    content.appendChild(image);
+  }
+
+  const edit = document.createElement("button");
+
+  edit.type = "button";
+  edit.className = "timeline-edit";
+  edit.textContent = "Edit";
+
+  edit.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openMomentModal(moment.id);
+  });
+
+  content.appendChild(edit);
+
+  article.appendChild(date);
+  article.appendChild(content);
+
+  article.addEventListener("click", () => {
+    focusMomentOnMap(moment.id);
+
+    highlightTimelineMoment(moment.id);
+  });
+
+  return article;
+}
+
+
+/* =========================================================
+   TIMELINE ↔ MAP
+========================================================= */
+
+function focusMomentOnMap(momentId) {
+  const moment = getMomentById(momentId);
+
+  if (!moment) {
+    return;
+  }
+
+  if (
+    !mapInstance ||
+    !Number.isFinite(Number(moment.lat)) ||
+    !Number.isFinite(Number(moment.lng))
+  ) {
+    openMomentModal(momentId);
+    return;
+  }
+
+  const marker = flyToPlace(
+    mapInstance,
+    {
+      name: moment.place || moment.title,
+      address: moment.address || "",
+      lat: Number(moment.lat),
+      lng: Number(moment.lng)
+    },
+    {
+      momentId: moment.id,
+      zoom: 15
+    }
+  );
+
+  setActiveMarker(moment.id);
+
+  if (marker) {
+    marker.togglePopup();
+  }
+}
+
+
+function handleMarkerClick(momentId) {
+  if (!momentId) {
+    return;
+  }
+
+  highlightTimelineMoment(momentId);
+
+  const card = document.querySelector(
+    `[data-moment-id="${CSS.escape(momentId)}"]`
+  );
+
+  if (card) {
+    card.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+  }
+
+  setActiveMarker(momentId);
+}
+
+
+function highlightTimelineMoment(momentId) {
+  document
+    .querySelectorAll(".timeline-card")
+    .forEach((card) => {
+      card.classList.toggle(
+        "is-active",
+        card.dataset.momentId === momentId
+      );
+    });
+}
+
+
+/* =========================================================
+   MAP RENDER
+========================================================= */
+
+function renderMap(trip) {
+  if (!mapInstance || !trip) {
+    return;
+  }
+
+  if (!mapInstance.loaded()) {
+    return;
+  }
+
+  clearMarkers();
+
+  trip.moments.forEach((moment) => {
+    if (
+      !Number.isFinite(Number(moment.lat)) ||
+      !Number.isFinite(Number(moment.lng))
+    ) {
+      return;
+    }
+
+    addPlaceMarker(
+      mapInstance,
+      {
+        name: moment.place || moment.title,
+        address: moment.address || "",
+        lat: Number(moment.lat),
+        lng: Number(moment.lng)
+      },
+      {
+        momentId: moment.id,
+        onClick: () => {
+          handleMarkerClick(moment.id);
+        }
+      }
+    );
+  });
+}
+
+
+/* =========================================================
+   MAP SEARCH
+========================================================= */
+
+async function handleMapSearch() {
+  const input = $("map-search");
+
+  if (!input) {
+    return;
+  }
+
+  const query = input.value.trim();
+
+  if (!query) {
+    return;
+  }
+
+  const button = $("map-search-btn");
+
+  setButtonLoading(button, true);
+
+  const results = await searchPlaces(query);
+
+  setButtonLoading(button, false);
+
+  renderMapSearchResults(results);
+}
+
+
+function renderMapSearchResults(results) {
+  const container = $("map-search-results");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  if (!results.length) {
+    const empty = document.createElement("div");
+
+    empty.className = "search-empty";
+    empty.textContent =
+      "No matching places found. Try an English or local-language name.";
+
+    container.appendChild(empty);
+
+    return;
+  }
+
+  results.forEach((place) => {
+    const item = createPlaceSearchResult(
+      place,
+      (selectedPlace) => {
+        if (!mapInstance) {
+          return;
+        }
+
+        flyToPlace(
+          mapInstance,
+          selectedPlace,
+          {
+            zoom: 15
+          }
+        );
+      }
+    );
+
+    container.appendChild(item);
+  });
+}
+
+
+/* =========================================================
+   MOMENT PLACE SEARCH
+========================================================= */
+
+async function handleMomentPlaceSearch() {
+  const input =
+    $("moment-place-search") ||
+    $("moment-search");
+
+  const resultsContainer =
+    $("moment-place-results") ||
+    $("moment-search-results");
+
+  if (!input || !resultsContainer) {
+    return;
+  }
+
+  const query = input.value.trim();
+
+  if (!query) {
+    return;
+  }
+
+  const button =
+    $("moment-place-search-btn") ||
+    $("moment-search-btn");
+
+  setButtonLoading(button, true);
+
+  const results = await searchPlaces(query);
+
+  setButtonLoading(button, false);
+
+  resultsContainer.innerHTML = "";
+
+  if (!results.length) {
+    const empty = document.createElement("div");
+
+    empty.className = "search-empty";
+    empty.textContent =
+      "No matching places found. Try another name or language.";
+
+    resultsContainer.appendChild(empty);
+
+    return;
+  }
+
+  results.forEach((place) => {
+    const item = createPlaceSearchResult(
+      place,
+      selectMomentPlace
+    );
+
+    resultsContainer.appendChild(item);
+  });
+}
+
+
+function createPlaceSearchResult(place, onSelect) {
+  const button = document.createElement("button");
+
+  button.type = "button";
+  button.className = "place-search-result";
+
+  const name = document.createElement("strong");
+  name.textContent = place.name;
+
+  const address = document.createElement("span");
+  address.textContent = place.address;
+
+  button.appendChild(name);
+  button.appendChild(address);
+
+  button.addEventListener("click", () => {
+    onSelect(place);
+  });
+
+  return button;
+}
+
+
+function selectMomentPlace(place) {
+  const placeInput = $("moment-place");
+  const addressInput = $("moment-address");
+  const latInput = $("moment-lat");
+  const lngInput = $("moment-lng");
+
+  if (placeInput) {
+    placeInput.value = place.name || "";
+  }
+
+  if (addressInput) {
+    addressInput.value = place.address || "";
+  }
+
+  if (latInput) {
+    latInput.value = String(place.lat);
+  }
+
+  if (lngInput) {
+    lngInput.value = String(place.lng);
+  }
+
+  const results =
+    $("moment-place-results") ||
+    $("moment-search-results");
+
+  if (results) {
+    results.innerHTML = "";
+  }
+
+  if (mapInstance) {
+    flyToPlace(
+      mapInstance,
+      place,
+      {
+        zoom: 15
+      }
+    );
+  }
+}
+
+
+/* =========================================================
+   TRIP MODAL
+========================================================= */
+
+function openTripModal(tripId = null) {
+  const modal = $("trip-modal");
+
+  if (!modal) {
+    return;
+  }
+
+  editingTripId = tripId;
+
+  const trip = tripId
+    ? data.trips.find(
+        (item) => item.id === tripId
+      )
+    : null;
+
+  $("trip-name").value =
+    trip?.name || "";
+
+  $("trip-start").value =
+    trip?.startDate || "";
+
+  $("trip-end").value =
+    trip?.endDate || "";
+
+  modal.classList.add("is-open");
+}
+
+
+function closeTripModal() {
+  $("trip-modal")?.classList.remove(
+    "is-open"
+  );
+
+  editingTripId = null;
+}
+
+
+function handleTripSubmit(event) {
+  event.preventDefault();
+
+  const name =
+    $("trip-name")?.value.trim();
+
+  const startDate =
+    $("trip-start")?.value || "";
+
+  const endDate =
+    $("trip-end")?.value || "";
+
+  if (!name) {
+    alert("Please enter a trip name.");
+    return;
+  }
+
+  if (
+    startDate &&
+    endDate &&
+    startDate > endDate
+  ) {
+    alert("End date cannot be earlier than start date.");
+    return;
+  }
+
+  if (editingTripId) {
+    const trip = data.trips.find(
+      (item) => item.id === editingTripId
+    );
+
+    if (trip) {
+      trip.name = name;
+      trip.startDate = startDate;
+      trip.endDate = endDate;
+    }
+
+    currentTripId = editingTripId;
+
+  } else {
+    const newTrip = {
+      id: createId("trip"),
+      name,
+      startDate,
+      endDate,
+      moments: []
+    };
+
+    data.trips.push(newTrip);
+
+    currentTripId = newTrip.id;
+  }
+
+  persist();
+
+  closeTripModal();
+
+  renderAll();
+}
+
+
+/* =========================================================
+   MOMENT MODAL
+========================================================= */
+
+function openMomentModal(momentId = null) {
+  const modal = $("moment-modal");
+
+  if (!modal) {
+    return;
+  }
+
+  editingMomentId = momentId;
+  selectedPhotoData = null;
+
+  const moment = momentId
+    ? getMomentById(momentId)
+    : null;
+
+  $("moment-date").value =
+    moment?.date ||
+    getCurrentTrip()?.startDate ||
+    "";
+
+  $("moment-time").value =
+    moment?.time || "";
+
+  $("moment-title").value =
+    moment?.title || "";
+
+  $("moment-place").value =
+    moment?.place || "";
+
+  $("moment-address").value =
+    moment?.address || "";
+
+  $("moment-lat").value =
+    moment?.lat ?? "";
+
+  $("moment-lng").value =
+    moment?.lng ?? "";
+
+  $("moment-thoughts").value =
+    moment?.thoughts || "";
+
+  $("moment-expense").value =
+    moment?.expense || "";
+
+  $("moment-currency").value =
+    moment?.currency || "CNY";
+
+  const preview = $("moment-photo-preview");
+
+  if (preview) {
+    preview.innerHTML = "";
+
+    if (moment?.photo) {
+      const image =
+        document.createElement("img");
+
+      image.src = moment.photo;
+      image.className = "photo-thumb";
+      image.alt = "Travel memory";
+
+      preview.appendChild(image);
+    }
+  }
+
+  const results =
+    $("moment-place-results") ||
+    $("moment-search-results");
+
+  if (results) {
+    results.innerHTML = "";
+  }
+
+  const deleteButton =
+    $("delete-moment");
+
+  if (deleteButton) {
+    deleteButton.hidden = !momentId;
+  }
+
+  modal.classList.add("is-open");
+}
+
+
+function closeMomentModal() {
+  $("moment-modal")?.classList.remove(
+    "is-open"
+  );
+
+  editingMomentId = null;
+  selectedPhotoData = null;
+}
+
+
+function handleMomentSubmit(event) {
+  event.preventDefault();
+
+  const trip = getCurrentTrip();
+
+  if (!trip) {
+    alert("Please create a trip first.");
+    return;
+  }
+
+  const date =
+    $("moment-date")?.value || "";
+
+  const time =
+    $("moment-time")?.value || "";
+
+  const title =
+    $("moment-title")?.value.trim() || "";
+
+  const place =
+    $("moment-place")?.value.trim() || "";
+
+  const address =
+    $("moment-address")?.value.trim() || "";
+
+  const latValue =
+    $("moment-lat")?.value;
+
+  const lngValue =
+    $("moment-lng")?.value;
+
+  const thoughts =
+    $("moment-thoughts")?.value.trim() || "";
+
+  const expense =
+    $("moment-expense")?.value.trim() || "";
+
+  const currency =
+    $("moment-currency")?.value || "CNY";
+
+  const lat =
+    latValue === ""
+      ? null
+      : Number(latValue);
+
+  const lng =
+    lngValue === ""
+      ? null
+      : Number(lngValue);
+
+  if (!date) {
+    alert("Please choose a date.");
+    return;
+  }
+
+  if (!title && !place) {
+    alert("Please enter a title or place.");
+    return;
+  }
+
+  if (
+    lat !== null &&
+    !Number.isFinite(lat)
+  ) {
+    alert("Invalid latitude.");
+    return;
+  }
+
+  if (
+    lng !== null &&
+    !Number.isFinite(lng)
+  ) {
+    alert("Invalid longitude.");
+    return;
+  }
+
+  const existing =
+    editingMomentId
+      ? getMomentById(editingMomentId)
+      : null;
+
+  const moment = {
+    id:
+      existing?.id ||
+      createId("moment"),
+
+    date,
+    time,
+    title,
+    place,
+    address,
+
+    lat,
+    lng,
+
+    thoughts,
+    expense,
+    currency,
+
+    photo:
+      selectedPhotoData ??
+      existing?.photo ??
+      ""
+  };
+
+  if (existing) {
+    Object.assign(
+      existing,
+      moment
+    );
+  } else {
+    trip.moments.push(moment);
+  }
+
+  persist();
+
+  closeMomentModal();
+
+  renderAll();
+}
+
+
+function handleDeleteMoment() {
+  if (!editingMomentId) {
+    return;
+  }
+
+  const trip = getCurrentTrip();
+
+  if (!trip) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Delete this moment?"
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  trip.moments =
+    trip.moments.filter(
+      (moment) =>
+        moment.id !== editingMomentId
+    );
+
+  persist();
+
+  closeMomentModal();
+
+  renderAll();
+}
+
+
+/* =========================================================
+   PHOTO
+========================================================= */
+
+async function handlePhotoChange(event) {
+  const file =
+    event.target.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  try {
+    selectedPhotoData =
+      await resizeImage(
+        file,
+        1600,
+        0.82
+      );
+
+    const preview =
+      $("moment-photo-preview");
+
+    if (preview) {
+      preview.innerHTML = "";
+
+      const image =
+        document.createElement("img");
+
+      image.src =
+        selectedPhotoData;
+
+      image.className =
+        "photo-thumb";
+
+      image.alt =
+        "Selected travel photo";
+
+      preview.appendChild(image);
+    }
+
+  } catch (error) {
+    console.error(
+      "Photo processing failed:",
+      error
+    );
+
+    alert(
+      "The photo could not be processed."
+    );
+  }
+}
+
+
+function resizeImage(
+  file,
+  maxSize = 1600,
+  quality = 0.82
+) {
+  return new Promise(
+    (resolve, reject) => {
+      const reader =
+        new FileReader();
+
+      reader.onerror = () => {
+        reject(
+          new Error(
+            "Could not read image."
+          )
+        );
+      };
+
+      reader.onload = () => {
+        const image =
+          new Image();
+
+        image.onerror = () => {
+          reject(
+            new Error(
+              "Could not decode image."
+            )
+          );
+        };
+
+        image.onload = () => {
+          let width =
+            image.naturalWidth;
+
+          let height =
+            image.naturalHeight;
+
+          const scale =
+            Math.min(
+              1,
+              maxSize /
+                Math.max(
+                  width,
+                  height
+                )
+            );
+
+          width =
+            Math.round(
+              width * scale
+            );
+
+          height =
+            Math.round(
+              height * scale
+            );
+
+          const canvas =
+            document.createElement(
+              "canvas"
+            );
+
+          canvas.width =
+            width;
+
+          canvas.height =
+            height;
+
+          const ctx =
+            canvas.getContext(
+              "2d"
+            );
+
+          if (!ctx) {
+            reject(
+              new Error(
+                "Canvas is unavailable."
+              )
+            );
+
+            return;
+          }
+
+          ctx.drawImage(
+            image,
+            0,
+            0,
+            width,
+            height
+          );
+
+          resolve(
+            canvas.toDataURL(
+              "image/jpeg",
+              quality
+            )
+          );
+        };
+
+        image.src =
+          reader.result;
+      };
+
+      reader.readAsDataURL(file);
+    }
+  );
+}
+
+
+/* =========================================================
+   FORMATTING
+========================================================= */
+
+function compareMoments(a, b) {
+  const aKey =
+    `${a.date || ""} ${a.time || ""}`;
+
+  const bKey =
+    `${b.date || ""} ${b.time || ""}`;
+
+  return aKey.localeCompare(
+    bKey
+  );
+}
+
+
+function formatMomentDate(moment) {
+  const date =
+    formatDate(moment.date);
+
+  return moment.time
+    ? `${date} · ${moment.time}`
+    : date;
 }
 
 
 function formatDate(dateString) {
+  if (!dateString) {
+    return "";
+  }
 
-  if (!dateString) return "";
+  const date =
+    new Date(
+      `${dateString}T00:00:00`
+    );
 
-  const date = new Date(
-    `${dateString}T12:00:00`
-  );
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return dateString;
+  }
 
   return date.toLocaleDateString(
     "en-US",
@@ -249,1757 +1371,100 @@ function formatDate(dateString) {
       year: "numeric"
     }
   );
-
 }
 
 
-function formatShortDate(dateString) {
-
-  if (!dateString) return "";
-
-  const date = new Date(
-    `${dateString}T12:00:00`
-  );
-
-  return date.toLocaleDateString(
-    "en-US",
-    {
-      month: "short",
-      day: "numeric"
-    }
-  );
-
-}
-
-
-function calculateDays(start, end) {
-
-  if (!start || !end) return 0;
-
-  const startDate =
-    new Date(`${start}T12:00:00`);
-
-  const endDate =
-    new Date(`${end}T12:00:00`);
-
-  const diff =
-    endDate.getTime() -
-    startDate.getTime();
-
-  return Math.max(
-    1,
-    Math.round(diff / 86400000) + 1
-  );
-
-}
-
-
-function formatMoney(amount, currency) {
-
-  const symbols = {
-
-    CNY: "¥",
-
-    THB: "฿",
-
-    USD: "$"
-
-  };
-
-  const symbol =
-    symbols[currency] || currency;
-
-  return (
-    symbol +
-    Number(amount || 0).toLocaleString(
-      undefined,
-      {
-        maximumFractionDigits: 2
-      }
-    )
-  );
-
-}
-
-
-/* =========================================================
-   DOM
-========================================================= */
-
-const tripTitle =
-  document.getElementById("tripTitle");
-
-const tripMeta =
-  document.getElementById("tripMeta");
-
-const totalSpend =
-  document.getElementById("totalSpend");
-
-const timeline =
-  document.getElementById("timeline");
-
-const newTripBtn =
-  document.getElementById("newTripBtn");
-
-const editTripBtn =
-  document.getElementById("editTripBtn");
-
-const addMomentBtn =
-  document.getElementById("addMomentBtn");
-
-const addMomentBottom =
-  document.getElementById("addMomentBottom");
-
-const tripModal =
-  document.getElementById("tripModal");
-
-const momentModal =
-  document.getElementById("momentModal");
-
-const tripForm =
-  document.getElementById("tripForm");
-
-const momentForm =
-  document.getElementById("momentForm");
-
-const tripModalTitle =
-  document.getElementById("tripModalTitle");
-
-const momentModalTitle =
-  document.getElementById("momentModalTitle");
-
-const deleteMomentBtn =
-  document.getElementById("deleteMomentBtn");
-
-const photoPreview =
-  document.getElementById("photoPreview");
-
-const momentPhoto =
-  document.getElementById("momentPhoto");
-
-const placeSearch =
-  document.getElementById("placeSearch");
-
-const searchPlaceBtn =
-  document.getElementById("searchPlaceBtn");
-
-const searchResults =
-  document.getElementById("searchResults");
-
-const momentPlaceSearch =
-  document.getElementById("momentPlaceSearch");
-
-const momentPlace =
-  document.getElementById("momentPlace");
-
-const momentSearchResults =
-  document.getElementById(
-    "momentSearchResults"
-  );
-
-
-/* =========================================================
-   MAP
-========================================================= */
-
-mapInstance = initMap("map");
-
-mapInstance.on(
-  "load",
-  () => {
-
-    renderMap();
-
+function formatDateRange(
+  start,
+  end
+) {
+  if (!start && !end) {
+    return "No dates set";
   }
-);
 
+  if (!end) {
+    return formatDate(start);
+  }
 
-/* =========================================================
-   RENDER EVERYTHING
-========================================================= */
+  if (!start) {
+    return formatDate(end);
+  }
 
-function renderAll() {
-
-  const trip =
-    getCurrentTrip();
-
-  if (!trip) return;
-
-  renderHero(trip);
-
-  renderTimeline(trip);
-
-  renderMap();
-
+  return `${formatDate(start)} — ${formatDate(end)}`;
 }
 
 
-/* =========================================================
-   HERO
-========================================================= */
-
-function renderHero(trip) {
-
-  tripTitle.textContent =
-    trip.name || "Untitled trip";
-
-  const days =
-    calculateDays(
-      trip.startDate,
-      trip.endDate
-    );
-
-  const places =
-    new Set(
-      trip.moments
-        .map(moment => moment.place)
-        .filter(Boolean)
-    ).size;
-
-  tripMeta.textContent =
-    `${days} days · ${places} places`;
-
-  renderTotalSpend(trip);
-
-}
-
-
-function renderTotalSpend(trip) {
-
+function formatTripExpense(trip) {
   const totals = {};
 
-  trip.moments.forEach(moment => {
+  trip.moments.forEach(
+    (moment) => {
+      const amount =
+        Number(
+          String(
+            moment.expense || ""
+          ).replace(/,/g, "")
+        );
 
-    const amount =
-      Number(moment.expense || 0);
+      if (
+        !Number.isFinite(
+          amount
+        ) ||
+        amount === 0
+      ) {
+        return;
+      }
 
-    const currency =
-      moment.currency || "CNY";
+      const currency =
+        moment.currency ||
+        "CNY";
 
-    totals[currency] =
-      (totals[currency] || 0) +
-      amount;
+      totals[currency] =
+        (totals[currency] || 0) +
+        amount;
+    }
+  );
 
-  });
+  const entries =
+    Object.entries(totals);
 
-
-  const currencies =
-    Object.keys(totals);
-
-
-  if (currencies.length === 0) {
-
-    totalSpend.textContent = "—";
-
-    return;
-
+  if (!entries.length) {
+    return "0";
   }
 
-
-  totalSpend.textContent =
-    currencies
-
-      .map(
-        currency =>
-          formatMoney(
-            totals[currency],
-            currency
-          )
-      )
-
-      .join(" · ");
-
-}
-
-
-/* =========================================================
-   TIMELINE
-========================================================= */
-
-function renderTimeline(trip) {
-
-  if (!trip.moments.length) {
-
-    timeline.innerHTML = `
-
-      <div class="timeline-empty">
-
-        No moments yet.
-
-        <br>
-
-        Add your first memory.
-
-      </div>
-
-    `;
-
-    return;
-
-  }
-
-
-  const moments =
-    [...trip.moments]
-
-      .sort(
-        (a, b) => {
-
-          const dateA =
-            `${a.date} ${a.time || "00:00"}`;
-
-          const dateB =
-            `${b.date} ${b.time || "00:00"}`;
-
-          return dateA.localeCompare(dateB);
-
-        }
-      );
-
-
-  timeline.innerHTML =
-    moments
-
-      .map(moment => {
-
-        const expense =
-          Number(moment.expense || 0);
-
-
-        return `
-
-          <article
-            class="moment"
-            data-id="${moment.id}"
-          >
-
-            <span class="moment-dot"></span>
-
-
-            <div class="moment-date">
-
-              ${escapeHtml(
-                formatShortDate(moment.date)
-              )}
-
-              ${
-                moment.time
-                  ? ` · ${escapeHtml(moment.time)}`
-                  : ""
-              }
-
-            </div>
-
-
-            <div class="moment-card">
-
-              <div class="moment-title">
-
-                ${escapeHtml(
-                  moment.title
-                )}
-
-              </div>
-
-
-              ${
-                moment.place
-
-                  ? `
-
-                    <div class="moment-place">
-
-                      ${escapeHtml(
-                        moment.place
-                      )}
-
-                    </div>
-
-                  `
-
-                  : ""
-              }
-
-
-              ${
-                moment.thoughts
-
-                  ? `
-
-                    <div class="moment-thoughts">
-
-                      ${escapeHtml(
-                        moment.thoughts
-                      )}
-
-                    </div>
-
-                  `
-
-                  : ""
-              }
-
-
-              ${
-                moment.photo
-
-                  ? `
-
-                    <img
-                      class="photo-thumb"
-                      src="${moment.photo}"
-                      alt="${escapeHtml(
-                        moment.title
-                      )}"
-                    >
-
-                  `
-
-                  : ""
-              }
-
-
-              <div class="moment-meta">
-
-                ${
-                  expense > 0
-
-                    ? `
-
-                      <span class="meta-chip expense">
-
-                        ${formatMoney(
-                          expense,
-                          moment.currency
-                        )}
-
-                      </span>
-
-                    `
-
-                    : ""
-                }
-
-
-                ${
-                  moment.address
-
-                    ? `
-
-                      <span class="meta-chip">
-
-                        Location saved
-
-                      </span>
-
-                    `
-
-                    : ""
-                }
-
-              </div>
-
-            </div>
-
-          </article>
-
-        `;
-
-      })
-
-      .join("");
-
-
-  document
-    .querySelectorAll(".moment")
-    .forEach(element => {
-
-      element.addEventListener(
-        "click",
-        () => {
-
-          const id =
-            element.dataset.id;
-
-          openMomentModal(id);
-
-        }
-      );
-
-    });
-
-}
-
-
-/* =========================================================
-   MAP
-========================================================= */
-
-function renderMap() {
-
-  if (!mapInstance.loaded()) {
-
-    return;
-
-  }
-
-
-  clearMarkers();
-
-
-  const trip =
-    getCurrentTrip();
-
-  if (!trip) return;
-
-
-  trip.moments
-
-    .filter(
-      moment =>
-        moment.lat &&
-        moment.lng
+  return entries
+    .map(
+      ([currency, amount]) =>
+        `${currency} ${amount.toFixed(2)}`
     )
-
-    .forEach(moment => {
-
-      addPlaceMarker(
-
-        mapInstance,
-
-        {
-
-          lat: moment.lat,
-
-          lng: moment.lng,
-
-          name: moment.place || moment.title
-
-        },
-
-        `
-
-          <strong>
-            ${escapeHtml(
-              moment.title
-            )}
-          </strong>
-
-          ${
-            moment.place
-              ? `<br>${escapeHtml(
-                  moment.place
-                )}`
-              : ""
-          }
-
-        `
-
-      );
-
-    });
-
+    .join(" · ");
 }
 
 
 /* =========================================================
-   FOCUS MAP ON MOMENT
+   UI HELPERS
 ========================================================= */
 
-function focusMomentOnMap(moment) {
-
-  if (
-    !moment.lat ||
-    !moment.lng
-  ) {
-
-    return;
-
-  }
-
-
-  flyToPlace(
-
-    mapInstance,
-
-    {
-
-      lat: moment.lat,
-
-      lng: moment.lng,
-
-      name:
-        moment.place ||
-        moment.title
-
-    },
-
-    moment.title
-
-  );
-
-}
-
-
-/* =========================================================
-   TRIP MODAL
-========================================================= */
-
-function openTripModal(mode = "new") {
-
-  tripModal.classList.remove(
-    "hidden"
-  );
-
-
-  if (mode === "edit") {
-
-    const trip =
-      getCurrentTrip();
-
-    editingTripId =
-      trip.id;
-
-    tripModalTitle.textContent =
-      "Edit trip";
-
-    document.getElementById(
-      "tripName"
-    ).value =
-      trip.name || "";
-
-    document.getElementById(
-      "tripStart"
-    ).value =
-      trip.startDate || "";
-
-    document.getElementById(
-      "tripEnd"
-    ).value =
-      trip.endDate || "";
-
-  } else {
-
-    editingTripId = null;
-
-    tripModalTitle.textContent =
-      "New trip";
-
-    tripForm.reset();
-
-  }
-
-}
-
-
-function closeModal(modal) {
-
-  modal.classList.add(
-    "hidden"
-  );
-
-}
-
-
-/* =========================================================
-   NEW / EDIT TRIP
-========================================================= */
-
-newTripBtn.addEventListener(
-  "click",
-  () => {
-
-    openTripModal("new");
-
-  }
-);
-
-
-editTripBtn.addEventListener(
-  "click",
-  () => {
-
-    openTripModal("edit");
-
-  }
-);
-
-
-tripForm.addEventListener(
-  "submit",
-  event => {
-
-    event.preventDefault();
-
-
-    const name =
-      document.getElementById(
-        "tripName"
-      ).value.trim();
-
-    const startDate =
-      document.getElementById(
-        "tripStart"
-      ).value;
-
-    const endDate =
-      document.getElementById(
-        "tripEnd"
-      ).value;
-
-
-    if (!name) return;
-
-
-    if (editingTripId) {
-
-      const trip =
-        data.trips.find(
-          item =>
-            item.id === editingTripId
-        );
-
-      if (trip) {
-
-        trip.name = name;
-
-        trip.startDate =
-          startDate;
-
-        trip.endDate =
-          endDate;
-
-      }
-
-    } else {
-
-      const newTrip = {
-
-        id: createId(),
-
-        name,
-
-        startDate,
-
-        endDate,
-
-        moments: []
-
-      };
-
-
-      data.trips.push(
-        newTrip
-      );
-
-      currentTripId =
-        newTrip.id;
-
-    }
-
-
-    save();
-
-    closeModal(
-      tripModal
-    );
-
-    renderAll();
-
-  }
-);
-
-
-/* =========================================================
-   MOMENT MODAL
-========================================================= */
-
-function openMomentModal(momentId = null) {
-
-  momentModal.classList.remove(
-    "hidden"
-  );
-
-
-  editingMomentId =
-    momentId;
-
-
-  selectedPhotoData = null;
-
-
-  photoPreview.innerHTML =
-    "";
-
-
-  if (momentId) {
-
-    const trip =
-      getCurrentTrip();
-
-    const moment =
-      trip.moments.find(
-        item =>
-          item.id === momentId
-      );
-
-
-    if (!moment) return;
-
-
-    momentModalTitle.textContent =
-      "Edit moment";
-
-    deleteMomentBtn.classList.remove(
-      "hidden"
-    );
-
-
-    document.getElementById(
-      "momentDate"
-    ).value =
-      moment.date || "";
-
-    document.getElementById(
-      "momentTime"
-    ).value =
-      moment.time || "";
-
-    document.getElementById(
-      "momentTitle"
-    ).value =
-      moment.title || "";
-
-    document.getElementById(
-      "momentPlace"
-    ).value =
-      moment.place || "";
-
-    document.getElementById(
-      "momentThoughts"
-    ).value =
-      moment.thoughts || "";
-
-    document.getElementById(
-      "momentExpense"
-    ).value =
-      moment.expense || "";
-
-    document.getElementById(
-      "momentCurrency"
-    ).value =
-      moment.currency || "CNY";
-
-    document.getElementById(
-      "momentLat"
-    ).value =
-      moment.lat || "";
-
-    document.getElementById(
-      "momentLng"
-    ).value =
-      moment.lng || "";
-
-    document.getElementById(
-      "momentAddress"
-    ).value =
-      moment.address || "";
-
-
-    if (moment.photo) {
-
-      photoPreview.innerHTML = `
-
-        <img
-          src="${moment.photo}"
-          alt="Current photo"
-        >
-
-      `;
-
-    }
-
-  } else {
-
-    momentModalTitle.textContent =
-      "Add moment";
-
-    deleteMomentBtn.classList.add(
-      "hidden"
-    );
-
-    momentForm.reset();
-
-    document.getElementById(
-      "momentDate"
-    ).value =
-      getCurrentTrip().startDate || "";
-
-    document.getElementById(
-      "momentCurrency"
-    ).value =
-      "CNY";
-
-  }
-
-}
-
-
-addMomentBtn.addEventListener(
-  "click",
-  () => {
-
-    openMomentModal();
-
-  }
-);
-
-
-addMomentBottom.addEventListener(
-  "click",
-  () => {
-
-    openMomentModal();
-
-  }
-);
-
-
-/* =========================================================
-   CLOSE MODALS
-========================================================= */
-
-document
-  .querySelectorAll("[data-close]")
-  .forEach(button => {
-
-    button.addEventListener(
-      "click",
-      () => {
-
-        const id =
-          button.dataset.close;
-
-        const modal =
-          document.getElementById(id);
-
-        closeModal(modal);
-
-      }
-    );
-
-  });
-
-
-document
-  .querySelectorAll(".modal")
-  .forEach(modal => {
-
-    modal.addEventListener(
-      "click",
-      event => {
-
-        if (
-          event.target === modal
-        ) {
-
-          closeModal(modal);
-
-        }
-
-      }
-    );
-
-  });
-
-
-/* =========================================================
-   PHOTO PROCESSING
-========================================================= */
-
-momentPhoto.addEventListener(
-  "change",
-  async event => {
-
-    const file =
-      event.target.files?.[0];
-
-    if (!file) return;
-
-
-    try {
-
-      selectedPhotoData =
-        await resizeImage(file);
-
-
-      photoPreview.innerHTML = `
-
-        <img
-          src="${selectedPhotoData}"
-          alt="Photo preview"
-        >
-
-      `;
-
-    } catch (error) {
-
-      console.error(
-        "Photo processing failed:",
-        error
-      );
-
-      alert(
-        "Could not process this image."
-      );
-
-    }
-
-  }
-);
-
-
-function resizeImage(
-  file,
-  maxSize = 1400,
-  quality = 0.82
+function setButtonLoading(
+  button,
+  loading
 ) {
+  if (!button) {
+    return;
+  }
 
-  return new Promise(
-    (resolve, reject) => {
+  if (loading) {
+    button.dataset.originalText =
+      button.textContent;
 
-      const reader =
-        new FileReader();
+    button.disabled = true;
+    button.textContent =
+      "Searching…";
+  } else {
+    button.disabled = false;
 
-
-      reader.onload = event => {
-
-        const image =
-          new Image();
-
-
-        image.onload = () => {
-
-          let width =
-            image.width;
-
-          let height =
-            image.height;
-
-
-          const ratio =
-            Math.min(
-              1,
-              maxSize / Math.max(
-                width,
-                height
-              )
-            );
-
-
-          width =
-            Math.round(
-              width * ratio
-            );
-
-          height =
-            Math.round(
-              height * ratio
-            );
-
-
-          const canvas =
-            document.createElement(
-              "canvas"
-            );
-
-
-          canvas.width =
-            width;
-
-          canvas.height =
-            height;
-
-
-          const context =
-            canvas.getContext(
-              "2d"
-            );
-
-
-          context.drawImage(
-            image,
-            0,
-            0,
-            width,
-            height
-          );
-
-
-          resolve(
-            canvas.toDataURL(
-              "image/jpeg",
-              quality
-            )
-          );
-
-        };
-
-
-        image.onerror =
-          reject;
-
-
-        image.src =
-          event.target.result;
-
-      };
-
-
-      reader.onerror =
-        reject;
-
-
-      reader.readAsDataURL(
-        file
-      );
-
-    }
-  );
-
+    button.textContent =
+      button.dataset.originalText ||
+      "Search";
+  }
 }
-
-
-/* =========================================================
-   SAVE MOMENT
-========================================================= */
-
-momentForm.addEventListener(
-  "submit",
-  async event => {
-
-    event.preventDefault();
-
-
-    const trip =
-      getCurrentTrip();
-
-    if (!trip) return;
-
-
-    const date =
-      document.getElementById(
-        "momentDate"
-      ).value;
-
-    const time =
-      document.getElementById(
-        "momentTime"
-      ).value;
-
-    const title =
-      document.getElementById(
-        "momentTitle"
-      ).value.trim();
-
-    const place =
-      document.getElementById(
-        "momentPlace"
-      ).value.trim();
-
-    const thoughts =
-      document.getElementById(
-        "momentThoughts"
-      ).value.trim();
-
-    const expense =
-      Number(
-        document.getElementById(
-          "momentExpense"
-        ).value || 0
-      );
-
-    const currency =
-      document.getElementById(
-        "momentCurrency"
-      ).value;
-
-    const lat =
-      Number(
-        document.getElementById(
-          "momentLat"
-        ).value
-      ) || null;
-
-    const lng =
-      Number(
-        document.getElementById(
-          "momentLng"
-        ).value
-      ) || null;
-
-    const address =
-      document.getElementById(
-        "momentAddress"
-      ).value.trim();
-
-
-    if (!title) {
-
-      alert(
-        "Please give this moment a title."
-      );
-
-      return;
-
-    }
-
-
-    let photo = "";
-
-
-    if (selectedPhotoData) {
-
-      photo =
-        selectedPhotoData;
-
-    } else if (editingMomentId) {
-
-      const existing =
-        trip.moments.find(
-          item =>
-            item.id === editingMomentId
-        );
-
-      photo =
-        existing?.photo || "";
-
-    }
-
-
-    const momentData = {
-
-      id:
-        editingMomentId ||
-        createId(),
-
-      date,
-
-      time,
-
-      title,
-
-      place,
-
-      address,
-
-      lat,
-
-      lng,
-
-      thoughts,
-
-      expense,
-
-      currency,
-
-      photo
-
-    };
-
-
-    if (editingMomentId) {
-
-      const index =
-        trip.moments.findIndex(
-          item =>
-            item.id === editingMomentId
-        );
-
-
-      if (index !== -1) {
-
-        trip.moments[index] =
-          momentData;
-
-      }
-
-    } else {
-
-      trip.moments.push(
-        momentData
-      );
-
-    }
-
-
-    save();
-
-    closeModal(
-      momentModal
-    );
-
-    renderAll();
-
-    editingMomentId =
-      null;
-
-    selectedPhotoData =
-      null;
-
-  }
-);
-
-
-/* =========================================================
-   DELETE MOMENT
-========================================================= */
-
-deleteMomentBtn.addEventListener(
-  "click",
-  () => {
-
-    if (!editingMomentId) return;
-
-
-    const confirmed =
-      window.confirm(
-        "Delete this moment?"
-      );
-
-
-    if (!confirmed) return;
-
-
-    const trip =
-      getCurrentTrip();
-
-
-    trip.moments =
-      trip.moments.filter(
-        moment =>
-          moment.id !==
-          editingMomentId
-      );
-
-
-    save();
-
-    closeModal(
-      momentModal
-    );
-
-    editingMomentId =
-      null;
-
-    renderAll();
-
-  }
-);
-
-
-/* =========================================================
-   MAP SEARCH
-========================================================= */
-
-searchPlaceBtn.addEventListener(
-  "click",
-  performMapSearch
-);
-
-
-placeSearch.addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      event.key === "Enter"
-    ) {
-
-      event.preventDefault();
-
-      performMapSearch();
-
-    }
-
-  }
-);
-
-
-async function performMapSearch() {
-
-  const query =
-    placeSearch.value.trim();
-
-  if (!query) return;
-
-
-  searchResults.classList.remove(
-    "hidden"
-  );
-
-
-  searchResults.innerHTML = `
-
-    <div class="search-result">
-
-      Searching...
-
-    </div>
-
-  `;
-
-
-  try {
-
-    const results =
-      await searchPlaces(
-        query
-      );
-
-
-    if (!results.length) {
-
-      searchResults.innerHTML = `
-
-        <div class="search-result">
-
-          No places found.
-
-        </div>
-
-      `;
-
-      return;
-
-    }
-
-
-    searchResults.innerHTML =
-      results
-
-        .map(
-          place => `
-
-            <div
-              class="search-result"
-              data-place-id="${place.id}"
-            >
-
-              <div
-                class="search-result-name"
-              >
-
-                ${escapeHtml(
-                  place.name
-                )}
-
-              </div>
-
-
-              <div
-                class="search-result-address"
-              >
-
-                ${escapeHtml(
-                  place.address
-                )}
-
-              </div>
-
-            </div>
-
-          `
-        )
-
-        .join("");
-
-
-    searchResults
-      .querySelectorAll(
-        ".search-result"
-      )
-      .forEach(
-        (element, index) => {
-
-          element.addEventListener(
-            "click",
-            () => {
-
-              const place =
-                results[index];
-
-
-              flyToPlace(
-
-                mapInstance,
-
-                place,
-
-                place.name
-
-              );
-
-
-              searchResults.classList.add(
-                "hidden"
-              );
-
-            }
-          );
-
-        }
-      );
-
-  } catch (error) {
-
-    console.error(
-      "Place search failed:",
-      error
-    );
-
-
-    searchResults.innerHTML = `
-
-      <div class="search-result">
-
-        Search failed. Please try again.
-
-      </div>
-
-    `;
-
-  }
-
-}
-
-
-/* =========================================================
-   PLACE SEARCH INSIDE MOMENT MODAL
-========================================================= */
-
-momentPlaceSearch.addEventListener(
-  "click",
-  performMomentPlaceSearch
-);
-
-
-momentPlace.addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      event.key === "Enter"
-    ) {
-
-      event.preventDefault();
-
-      performMomentPlaceSearch();
-
-    }
-
-  }
-);
-
-
-async function performMomentPlaceSearch() {
-
-  const query =
-    momentPlace.value.trim();
-
-  if (!query) return;
-
-
-  momentSearchResults.classList.remove(
-    "hidden"
-  );
-
-
-  momentSearchResults.innerHTML = `
-
-    <div class="search-result">
-
-      Searching...
-
-    </div>
-
-  `;
-
-
-  try {
-
-    const results =
-      await searchPlaces(
-        query
-      );
-
-
-    if (!results.length) {
-
-      momentSearchResults.innerHTML = `
-
-        <div class="search-result">
-
-          No places found.
-
-        </div>
-
-      `;
-
-      return;
-
-    }
-
-
-    momentSearchResults.innerHTML =
-      results
-
-        .map(
-          place => `
-
-            <div
-              class="search-result"
-              data-place-id="${place.id}"
-            >
-
-              <div
-                class="search-result-name"
-              >
-
-                ${escapeHtml(
-                  place.name
-                )}
-
-              </div>
-
-
-              <div
-                class="search-result-address"
-              >
-
-                ${escapeHtml(
-                  place.address
-                )}
-
-              </div>
-
-            </div>
-
-          `
-        )
-
-        .join("");
-
-
-    momentSearchResults
-      .querySelectorAll(
-        ".search-result"
-      )
-      .forEach(
-        (element, index) => {
-
-          element.addEventListener(
-            "click",
-            () => {
-
-              const place =
-                results[index];
-
-
-              momentPlace.value =
-                place.name;
-
-              document.getElementById(
-                "momentAddress"
-              ).value =
-                place.address;
-
-              document.getElementById(
-                "momentLat"
-              ).value =
-                place.lat;
-
-              document.getElementById(
-                "momentLng"
-              ).value =
-                place.lng;
-
-
-              momentSearchResults.classList.add(
-                "hidden"
-              );
-
-
-              flyToPlace(
-
-                mapInstance,
-
-                place,
-
-                place.name
-
-              );
-
-            }
-          );
-
-        }
-      );
-
-  } catch (error) {
-
-    console.error(
-      "Moment place search failed:",
-      error
-    );
-
-
-    momentSearchResults.innerHTML = `
-
-      <div class="search-result">
-
-        Search failed. Please try again.
-
-      </div>
-
-    `;
-
-  }
-
-}
-
-
-/* =========================================================
-   ESC KEY
-========================================================= */
-
-document.addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      event.key !== "Escape"
-    ) return;
-
-
-    document
-      .querySelectorAll(
-        ".modal"
-      )
-      .forEach(
-        modal => {
-
-          closeModal(modal);
-
-        }
-      );
-
-  }
-);
-
-
-/* =========================================================
-   INITIAL RENDER
-========================================================= */
-
-renderAll();
