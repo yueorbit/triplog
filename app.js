@@ -636,7 +636,9 @@ async function handleMapSearch() {
 
 
 function renderMapSearchResults(results) {
-  const container = $("map-search-results");
+  const container =
+    $("map-search-results") ||
+    $("map-results");
 
   if (!container) {
     return;
